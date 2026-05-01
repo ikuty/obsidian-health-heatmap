@@ -7,30 +7,92 @@ const STEP = CELL + GAP;
 const LABEL_LEFT = 44; // 時刻ラベル幅
 const LABEL_TOP = 28;  // 日付ラベル高さ
 
-// 日次換算のカラースケール (agg に応じてしきい値を比例縮小)
-const DAILY_SCALES: Record<
-  MetricType,
-  { thresholds: number[]; colors: string[] }
-> = {
-  steps: {
-    thresholds: [1000, 5000, 8000, 10000],
-    colors: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'],
-  },
+// steps 用: 16段階グリーングラデーション (index 0 = グレー、1〜15 = 薄緑→濃緑)
+const STEPS_COLORS: string[] = [
+  '#ebedf0', // 0: データなし (グレー)
+  '#d7f0dc', // 1
+  '#c4ead0', // 2
+  '#b0e3c3', // 3
+  '#9be9a8', // 4
+  '#85d99c', // 5
+  '#6cd08e', // 6
+  '#53c67f', // 7
+  '#40c463', // 8
+  '#34b558', // 9
+  '#29a14d', // 10
+  '#1e8d42', // 11
+  '#147a37', // 12
+  '#0c662d', // 13
+  '#085222', // 14
+  '#063d19', // 15
+];
+
+// calories 用: 16段階レッドグラデーション (index 0 = グレー、1〜15 = 薄赤→濃赤)
+const CALORIES_COLORS: string[] = [
+  '#ebedf0', // 0: データなし (グレー)
+  '#fde8e8', // 1
+  '#fbc7c7', // 2
+  '#f8a6a6', // 3
+  '#f58585', // 4
+  '#f16464', // 5
+  '#ec4444', // 6
+  '#e52a2a', // 7
+  '#db1515', // 8
+  '#cb0d0d', // 9
+  '#ba0808', // 10
+  '#a70505', // 11
+  '#920303', // 12
+  '#7b0202', // 13
+  '#620101', // 14
+  '#4a0101', // 15
+];
+
+// sleep 用: 16段階ブルーグラデーション (index 0 = グレー、1〜15 = 薄青→濃青)
+// minutes_asleep: 各時間スロットの睡眠分数。少ない→多いほど濃く
+const SLEEP_COLORS: string[] = [
+  '#ebedf0', // 0: データなし (グレー)
+  '#d7e6f5', // 1
+  '#bfd8f1', // 2
+  '#a7caec', // 3
+  '#8fbce7', // 4
+  '#76ade2', // 5
+  '#5c9fdc', // 6
+  '#4291d7', // 7
+  '#2883cd', // 8
+  '#1974bb', // 9
+  '#1265a8', // 10
+  '#0c5695', // 11
+  '#084782', // 12
+  '#053870', // 13
+  '#032a5d', // 14
+  '#011c4a', // 15
+];
+
+// active_minutes 用: 16段階オレンジグラデーション (index 0 = グレー、1〜15 = 薄→濃)
+const ACTIVE_COLORS: string[] = [
+  '#ebedf0', // 0: データなし (グレー)
+  '#fef2e2', // 1
+  '#fde3c3', // 2
+  '#fbd3a5', // 3
+  '#f9c288', // 4
+  '#f6af6a', // 5
+  '#f29b4e', // 6
+  '#ed8718', // 7
+  '#da7410', // 8
+  '#be620a', // 9
+  '#a35108', // 10
+  '#874206', // 11
+  '#6c3304', // 12
+  '#592803', // 13
+  '#471d02', // 14
+  '#361302', // 15
+];
+
+// 日次換算のカラースケール (heart_rate のみ固定しきい値)
+const DAILY_SCALES: Record<'heart_rate', { thresholds: number[]; colors: string[] }> = {
   heart_rate: {
     thresholds: [50, 60, 70, 80],
     colors: ['#ebedf0', '#6fc3f7', '#40c463', '#e4a836', '#e05d5d'],
-  },
-  calories: {
-    thresholds: [500, 1000, 1500, 2000],
-    colors: ['#ebedf0', '#9be9a8', '#40c463', '#e4a836', '#e05d5d'],
-  },
-  sleep: {
-    thresholds: [0.3, 0.5, 0.7, 0.9],
-    colors: ['#e05d5d', '#e4a836', '#40c463', '#30a14e', '#216e39'],
-  },
-  active_minutes: {
-    thresholds: [10, 20, 30, 45],
-    colors: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'],
   },
 };
 
@@ -51,8 +113,8 @@ export class HeatmapRenderer {
     // X 軸: 日付リスト (startDate〜endDate の全日)
     const dates = this.buildDates(startDate, this.params.endDate);
 
-    // カラー関数 (agg に応じてしきい値をスケール)
-    const colorFn = this.makeColorFn(metric, agg);
+    // カラー関数 (steps は min/max から動的生成、その他は固定しきい値)
+    const colorFn = this.makeColorFn(metric, agg, normalized);
 
     // SVG サイズ
     const svgW = LABEL_LEFT + dates.length * STEP;
@@ -136,16 +198,20 @@ export class HeatmapRenderer {
     return result;
   }
 
-  // agg に応じてしきい値を比例縮小したカラー関数を返す
-  private makeColorFn(metric: MetricType, agg: number): (value: number) => string {
-    const base = DAILY_SCALES[metric] ?? DAILY_SCALES.steps;
-    const factor = agg / 24;
-    // heart_rate と sleep はスケーリング不要 (絶対値ベース)
-    const noScale = metric === 'heart_rate' || metric === 'sleep';
-    const thresholds = noScale
-      ? base.thresholds
-      : base.thresholds.map(t => Math.max(1, Math.round(t * factor)));
-    const colors = base.colors;
+  // カラー関数を生成 (steps/calories/sleep は動的16段階、その他は固定しきい値)
+  private makeColorFn(
+    metric: MetricType,
+    agg: number,
+    data: HeatmapDataPoint[]
+  ): (value: number) => string {
+    if (metric === 'steps')          return this.makeDynamicColorFn(data, STEPS_COLORS);
+    if (metric === 'calories')       return this.makeDynamicColorFn(data, CALORIES_COLORS);
+    if (metric === 'sleep')          return this.makeDynamicColorFn(data, SLEEP_COLORS);
+    if (metric === 'active_minutes') return this.makeDynamicColorFn(data, ACTIVE_COLORS);
+
+    // heart_rate のみ固定しきい値
+    const base = DAILY_SCALES['heart_rate'];
+    const { thresholds, colors } = base;
 
     return (value: number) => {
       if (value <= 0) return colors[0];
@@ -153,6 +219,27 @@ export class HeatmapRenderer {
         if (value < thresholds[i]) return colors[i];
       }
       return colors[colors.length - 1];
+    };
+  }
+
+  // データの min/max から16段階に動的分類する汎用カラー関数
+  private makeDynamicColorFn(
+    data: HeatmapDataPoint[],
+    colors: string[]  // colors[0]=グレー、colors[1〜15]=グラデーション
+  ): (value: number) => string {
+    const positiveValues = data.filter(d => d.value > 0).map(d => d.value);
+    if (positiveValues.length === 0) return () => colors[0];
+
+    const min = Math.min(...positiveValues);
+    const max = Math.max(...positiveValues);
+    const range = max - min;
+
+    return (value: number) => {
+      if (value <= 0) return colors[0];
+      if (range === 0) return colors[colors.length - 1];
+      // 第1階級(最小値付近) → colors[0](グレー)、第16階級(最大値) → colors[15]
+      const idx = Math.min(colors.length - 1, Math.floor((value - min) / range * colors.length));
+      return colors[idx];
     };
   }
 }
