@@ -1,0 +1,27 @@
+# Build output
+main.js
+main.js.map
+*.js.map
+
+# Dependencies
+node_modules/
+
+# Environment / secrets
+local.env
+.env
+.env.local
+.env.*.local
+
+# Obsidian plugin runtime data (tokens, cache)
+data.json
+cache.json
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Test coverage
+coverage/

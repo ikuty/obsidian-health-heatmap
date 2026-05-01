@@ -1,0 +1,10 @@
+{
+  "id": "health-api-heatmap-plugin",
+  "name": "Google Health Heatmap",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Visualize Google Health API data as a heatmap in Obsidian",
+  "author": "ikuty",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
