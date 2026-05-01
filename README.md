@@ -1,14 +1,15 @@
 # Google Health Heatmap
 
-An Obsidian plugin that visualizes health data from the Google Health API as a heatmap using [Cal-Heatmap.js](https://cal-heatmap.com/).
+An Obsidian plugin that visualizes health data from the Google Health API as a time-based heatmap (SVG).
 
 ## Features
 
+- **Panel view** — Dockable panel with one-click metric switching (Steps / Calories / Sleep / Active)
 - **Google Health API integration** — Secure authentication via OAuth 2.0 (PKCE)
 - **5 metrics supported** — Steps, heart rate, calories, sleep, and active minutes
-- **Flexible aggregation** — Daily, hourly, or custom millisecond intervals
+- **Flexible aggregation** — 1–24 hours per time slot (Y-axis), any number of days (X-axis)
 - **Local cache** — Minimizes API calls with LRU + TTL caching
-- **Code block syntax** — Just write a ` ```health-heatmap ` block in any note
+- **Code block syntax** — Embed a heatmap inline in any note with a ` ```health-heatmap ` block
 
 ## Requirements
 
@@ -27,8 +28,6 @@ An Obsidian plugin that visualizes health data from the Google Health API as a h
 4. Note your client ID and client secret
 
 ### 2. Install the plugin
-
-> Once published to the Obsidian Community Plugins directory, you can install it directly from the plugin browser.
 
 For manual installation:
 
@@ -52,61 +51,88 @@ Then enable the plugin under **Settings > Community plugins**.
 
 ## Usage
 
-Add a code block to any note to render a heatmap:
+### Panel view
+
+Open the panel using either method:
+
+- Click the **activity icon** in the left ribbon
+- Run **"Health Heatmap パネルを開く"** from the command palette (`Cmd/Ctrl+P`)
+
+The panel docks in the right sidebar and shows:
+
+```
+[ Steps ] [ Calories ] [ Sleep ] [ Active ]   ← click to switch metric
+─────────────────────────────────────────────
+          heatmap  (past 14 days, 2-hour slots)
+```
+
+The default metric is **Steps**. Clicking a button immediately refetches (or loads from cache) and redraws the heatmap.
+
+### Code block
+
+Add a `health-heatmap` code block to any note:
 
 ````markdown
 ```health-heatmap
 metric: steps
-range: 365
-startDate: 2025-04-28
-aggregationPeriod: daily
-theme: dark
+range: 30
+agg: 24
+theme: light
 ```
 ````
 
-### Parameters
+#### Parameters
 
-| Parameter | Values | Description |
-|---|---|---|
-| `metric` | `steps` \| `heart_rate` \| `calories` \| `sleep` \| `active_minutes` | Metric to display |
-| `range` | number (days) | Number of days to show |
-| `startDate` | `YYYY-MM-DD` | Start date |
-| `aggregationPeriod` | `daily` \| `hourly` \| milliseconds | Aggregation interval |
-| `theme` | `light` \| `dark` | Color theme |
-| `heartRateMetric` | `average` \| `min` \| `max` \| `all` | Heart rate statistic |
-| `calorieMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | Calorie statistic |
-| `sleepMetric` | `average` \| `min` \| `max` \| `sleep_ratio` | Sleep statistic |
-| `activeMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | Active minutes statistic |
+| Parameter | Type / Values | Default | Description |
+|---|---|---|---|
+| `metric` | `steps` \| `heart_rate` \| `calories` \| `sleep` \| `active_minutes` | — **(required)** | Metric to display |
+| `range` | number (days) | `7` | Number of days shown on the X-axis |
+| `agg` | integer 1–24 | `1` | Hours per time slot on the Y-axis (`24` = daily, `1` = hourly) |
+| `startDate` | `YYYY-MM-DD` | today − (range − 1) days | Start date of the range |
+| `theme` | `light` \| `dark` | `light` | Color theme |
+| `heartRateMetric` | `average` \| `min` \| `max` \| `all` | `average` | Heart rate statistic |
+| `calorieMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | `sum` | Calorie statistic |
+| `sleepMetric` | `minutes_asleep` \| `efficiency` | `minutes_asleep` | Sleep statistic |
+| `activeMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | `sum` | Active minutes statistic |
 
-### Examples
+#### Examples
 
-**Heart rate (hourly average):**
+**Daily steps for the past 30 days:**
+````markdown
+```health-heatmap
+metric: steps
+range: 30
+agg: 24
+```
+````
+
+**Hourly heart rate (2-hour slots) for the past 2 weeks:**
 ````markdown
 ```health-heatmap
 metric: heart_rate
 heartRateMetric: average
-aggregationPeriod: hourly
-range: 30
+range: 14
+agg: 2
 ```
 ````
 
-**Sleep ratio:**
+**Sleep duration (daily) for the past 90 days:**
 ````markdown
 ```health-heatmap
 metric: sleep
-sleepMetric: sleep_ratio
-aggregationPeriod: daily
+sleepMetric: minutes_asleep
 range: 90
+agg: 24
 ```
 ````
 
-**Total calories burned (hourly):**
+**Total calories per 2-hour block for the past week:**
 ````markdown
 ```health-heatmap
 metric: calories
 calorieMetric: sum
-aggregationPeriod: 3600000
 range: 7
+agg: 2
 ```
 ````
 
@@ -119,11 +145,14 @@ Google Health API
        │
   HealthClient          ← wrapper around Obsidian requestUrl
        │
-  DataProcessor         ← converts API response to Cal-Heatmap format
+  DataProcessor         ← converts API response to heatmap data points
        │          ↕ cache (LRU + TTL)
-  HeatmapRenderer       ← Canvas rendering via cal-heatmap.js
+  HeatmapRenderer       ← SVG rendering (custom, no external dependency)
        │
-  Obsidian Note
+  ┌────┴──────────────┐
+  │                   │
+  HealthHeatmapView   HeatmapBlock
+  (panel / ItemView)  (code block / MarkdownRenderChild)
 ```
 
 Cache is stored in `.obsidian/plugins/health-api-heatmap-plugin/data.json`. Default TTL is 24 hours with a 10 MB maximum (auto-evicted via LRU).

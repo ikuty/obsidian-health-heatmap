@@ -22,3 +22,47 @@
 /* 曜日ラベルカラー */
 .hh-day-sat { fill: #5bc8f5; }
 .hh-day-sun { fill: #e05d5d; }
+
+/* パネルビュー */
+.health-heatmap-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 8px;
+}
+
+.health-heatmap-btn-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 8px;
+}
+
+.health-heatmap-metric-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background 0.15s, color 0.15s;
+}
+
+.health-heatmap-metric-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.health-heatmap-metric-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.health-heatmap-content {
+  overflow: auto;
+  flex: 1;
+}
