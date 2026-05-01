@@ -1,58 +1,58 @@
 # Google Health Heatmap
 
-Google Health API から取得した健康データを [Cal-Heatmap.js](https://cal-heatmap.com/) でヒートマップ表示する Obsidian プラグインです。
+An Obsidian plugin that visualizes health data from the Google Health API as a heatmap using [Cal-Heatmap.js](https://cal-heatmap.com/).
 
-## 機能
+## Features
 
-- **Google Health API 連携** — OAuth 2.0 (PKCE) による安全な認証
-- **5 種類のメトリクス対応** — ステップ数・心拍数・消費カロリー・睡眠・アクティブ時間
-- **柔軟な集計期間** — 日次・時間単位・ミリ秒単位でカスタム指定
-- **ローカルキャッシュ** — LRU + TTL により API 呼び出しを最小化
-- **コードブロック記法** — ノート内に ` ```health-heatmap ` ブロックを書くだけで表示
+- **Google Health API integration** — Secure authentication via OAuth 2.0 (PKCE)
+- **5 metrics supported** — Steps, heart rate, calories, sleep, and active minutes
+- **Flexible aggregation** — Daily, hourly, or custom millisecond intervals
+- **Local cache** — Minimizes API calls with LRU + TTL caching
+- **Code block syntax** — Just write a ` ```health-heatmap ` block in any note
 
-## 前提条件
+## Requirements
 
-- Obsidian v1.4.0 以上（デスクトップ版のみ）
-- Google アカウント
-- Google Cloud Console でのプロジェクト・Fitness API の有効化
+- Obsidian v1.4.0 or later (desktop only)
+- A Google account
+- A Google Cloud project with the Fitness API enabled
 
-## セットアップ
+## Setup
 
-### 1. Google Cloud Console の設定
+### 1. Google Cloud Console
 
-1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成
-2. **API とサービス > ライブラリ** から **Fitness API** を有効化
-3. **API とサービス > 認証情報** で OAuth 2.0 クライアント ID を作成
-   - アプリケーションの種類: **デスクトップアプリ**
-4. クライアント ID とクライアントシークレットを控えておく
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable the **Fitness API** under **APIs & Services > Library**
+3. Create an OAuth 2.0 client ID under **APIs & Services > Credentials**
+   - Application type: **Desktop app**
+4. Note your client ID and client secret
 
-### 2. プラグインのインストール
+### 2. Install the plugin
 
-> Obsidian Community Plugins に公開後は、プラグインブラウザからインストールできます。
+> Once published to the Obsidian Community Plugins directory, you can install it directly from the plugin browser.
 
-手動インストールの場合:
+For manual installation:
 
 ```bash
-# Obsidian の Vault にプラグインディレクトリを作成
+# Create the plugin directory in your Vault
 mkdir -p <your-vault>/.obsidian/plugins/health-api-heatmap-plugin
 
-# ビルド成果物をコピー
+# Copy the build artifacts
 cp main.js manifest.json styles.css <your-vault>/.obsidian/plugins/health-api-heatmap-plugin/
 ```
 
-その後、Obsidian の **設定 > コミュニティプラグイン** でプラグインを有効化してください。
+Then enable the plugin under **Settings > Community plugins**.
 
-### 3. プラグインの認証設定
+### 3. Authenticate
 
-1. **設定 > Google Health Heatmap** を開く
-2. クライアント ID とクライアントシークレットを入力して保存
-3. **「OAuth テスト」** ボタンで認証フローを実行
+1. Open **Settings > Google Health Heatmap**
+2. Enter your client ID and client secret, then save
+3. Click **"OAuth Test"** to run the authentication flow
 
-> シークレットは設定画面に再表示されません。クライアント ID は末尾 4 文字のみ表示されます。
+> The secret is never shown again after saving. The client ID is displayed with only the last 4 characters visible.
 
-## 使い方
+## Usage
 
-ノートに以下のコードブロックを記述すると、ヒートマップが描画されます。
+Add a code block to any note to render a heatmap:
 
 ````markdown
 ```health-heatmap
@@ -64,23 +64,23 @@ theme: dark
 ```
 ````
 
-### パラメータ一覧
+### Parameters
 
-| パラメータ | 値 | 説明 |
+| Parameter | Values | Description |
 |---|---|---|
-| `metric` | `steps` \| `heart_rate` \| `calories` \| `sleep` \| `active_minutes` | 表示するメトリクス |
-| `range` | 数値（日数） | 表示期間 |
-| `startDate` | `YYYY-MM-DD` | 開始日 |
-| `aggregationPeriod` | `daily` \| `hourly` \| ミリ秒数 | 集計単位 |
-| `theme` | `light` \| `dark` | カラーテーマ |
-| `heartRateMetric` | `average` \| `min` \| `max` \| `all` | 心拍数の集計方法 |
-| `calorieMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | カロリーの集計方法 |
-| `sleepMetric` | `average` \| `min` \| `max` \| `sleep_ratio` | 睡眠の集計方法 |
-| `activeMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | アクティブ時間の集計方法 |
+| `metric` | `steps` \| `heart_rate` \| `calories` \| `sleep` \| `active_minutes` | Metric to display |
+| `range` | number (days) | Number of days to show |
+| `startDate` | `YYYY-MM-DD` | Start date |
+| `aggregationPeriod` | `daily` \| `hourly` \| milliseconds | Aggregation interval |
+| `theme` | `light` \| `dark` | Color theme |
+| `heartRateMetric` | `average` \| `min` \| `max` \| `all` | Heart rate statistic |
+| `calorieMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | Calorie statistic |
+| `sleepMetric` | `average` \| `min` \| `max` \| `sleep_ratio` | Sleep statistic |
+| `activeMetric` | `sum` \| `average` \| `min` \| `max` \| `all` | Active minutes statistic |
 
-### 使用例
+### Examples
 
-**心拍数（時間単位・平均）:**
+**Heart rate (hourly average):**
 ````markdown
 ```health-heatmap
 metric: heart_rate
@@ -90,7 +90,7 @@ range: 30
 ```
 ````
 
-**睡眠（睡眠率）:**
+**Sleep ratio:**
 ````markdown
 ```health-heatmap
 metric: sleep
@@ -100,7 +100,7 @@ range: 90
 ```
 ````
 
-**消費カロリー合計（1 時間ごと）:**
+**Total calories burned (hourly):**
 ````markdown
 ```health-heatmap
 metric: calories
@@ -110,45 +110,45 @@ range: 7
 ```
 ````
 
-## アーキテクチャ
+## Architecture
 
 ```
 Google Health API
        │ OAuth 2.0 (PKCE)
   OAuthManager
        │
-  HealthClient          ← Obsidian requestUrl のラッパー
+  HealthClient          ← wrapper around Obsidian requestUrl
        │
-  DataProcessor         ← API レスポンス → Cal-Heatmap 形式に変換
-       │          ↕ キャッシュ (LRU + TTL)
-  HeatmapRenderer       ← cal-heatmap.js による Canvas 描画
+  DataProcessor         ← converts API response to Cal-Heatmap format
+       │          ↕ cache (LRU + TTL)
+  HeatmapRenderer       ← Canvas rendering via cal-heatmap.js
        │
   Obsidian Note
 ```
 
-キャッシュは `.obsidian/plugins/health-api-heatmap-plugin/data.json` に保存されます。デフォルト TTL は 24 時間で、最大 10 MB まで保持します（LRU で自動削除）。
+Cache is stored in `.obsidian/plugins/health-api-heatmap-plugin/data.json`. Default TTL is 24 hours with a 10 MB maximum (auto-evicted via LRU).
 
-## 開発
+## Development
 
 ```bash
-# 依存関係のインストール
+# Install dependencies
 npm install
 
-# 開発ビルド（watch モード）
+# Development build (watch mode)
 npm run dev
 
-# プロダクションビルド
+# Production build
 npm run build
 
-# ユニットテスト
+# Unit tests
 npm test
 
-# リンター
+# Linter
 npm run lint
 ```
 
-テストは `__tests__/` に配置し、Obsidian API は Jest でモック化しています。
+Tests live in `__tests__/` and mock the Obsidian API with Jest.
 
-## ライセンス
+## License
 
 MIT
