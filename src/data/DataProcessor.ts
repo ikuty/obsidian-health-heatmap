@@ -8,24 +8,24 @@ import {
   StatisticType,
   HeartRateMetric,
   CalorieMetric,
-  SleepMetric,
   ActiveMetric,
   HeatmapDataPoint,
   HeatmapDataPointFull,
+  SleepColumnRangePoint,
 } from '../types';
 
 export class DataProcessor {
   process(
     raw: FitbitRawData,
     statisticType: StatisticType
-  ): HeatmapDataPoint[] | HeatmapDataPointFull[] {
+  ): HeatmapDataPoint[] | HeatmapDataPointFull[] | SleepColumnRangePoint[] {
     switch (raw.kind) {
       case 'daily':
         return this.processDaily(raw.metric, raw.entries, statisticType);
       case 'intraday':
         return this.processIntraday(raw.metric, raw.agg, raw.days, statisticType);
       case 'sleep':
-        return this.processSleep(raw.agg, raw.records, statisticType as SleepMetric);
+        return this.processSleep(raw.records);
     }
   }
 
@@ -130,63 +130,21 @@ export class DataProcessor {
 
   // --- Sleep ---
 
-  private processSleep(
-    agg: number,
-    records: FitbitSleepRecord[],
-    metric: SleepMetric
-  ): HeatmapDataPoint[] {
-    const mainSleepByDate = groupMainSleep(records);
+  private processSleep(records: FitbitSleepRecord[]): SleepColumnRangePoint[] {
+    const mainByDate = groupMainSleep(records);
 
-    if (agg >= 24) {
-      return Array.from(mainSleepByDate.entries()).map(([date, rec]) => ({
-        date,
-        value: metric === 'efficiency' ? rec.efficiency : rec.minutesAsleep,
-      }));
-    }
-
-    // Hourly: distribute sleep minutes across time slots
-    const result: HeatmapDataPoint[] = [];
-    for (const [, rec] of mainSleepByDate.entries()) {
-      const slots = this.buildSleepSlots(rec, agg);
-      result.push(...slots);
-    }
-    return result;
-  }
-
-  private buildSleepSlots(rec: FitbitSleepRecord, agg: number): HeatmapDataPoint[] {
-    const slots = new Map<string, number>();
-    const levels = rec.levels?.data ?? [];
-
-    if (levels.length > 0) {
-      // stages mode: use levels data
-      for (const level of levels) {
-        if (level.level === 'wake' || level.level === 'awake' || level.level === 'restless') continue;
-        const start = new Date(level.dateTime);
-        const sleepMinutes = Math.round(level.seconds / 60);
-        // distribute into agg-hour buckets
-        for (let m = 0; m < sleepMinutes; m++) {
-          const t = new Date(start.getTime() + m * 60_000);
-          const date = localDateStr(t);
-          const slotHour = Math.floor(t.getHours() / agg) * agg;
-          const key = `${date}T${pad(slotHour)}:00`;
-          slots.set(key, (slots.get(key) ?? 0) + 1);
-        }
-      }
-    } else {
-      // classic mode: fill from startTime to endTime
-      const start = new Date(rec.startTime);
-      const end = new Date(rec.endTime);
-      const totalMin = Math.round((end.getTime() - start.getTime()) / 60_000);
-      for (let m = 0; m < totalMin; m++) {
-        const t = new Date(start.getTime() + m * 60_000);
-        const date = localDateStr(t);
-        const slotHour = Math.floor(t.getHours() / agg) * agg;
-        const key = `${date}T${pad(slotHour)}:00`;
-        slots.set(key, (slots.get(key) ?? 0) + 1);
-      }
-    }
-
-    return Array.from(slots.entries()).map(([date, value]) => ({ date, value }));
+    return Array.from(mainByDate.values())
+      .map(rec => {
+        const midnight = new Date(rec.dateOfSleep + 'T00:00:00').getTime();
+        const startMs  = new Date(rec.startTime).getTime();
+        const endMs    = new Date(rec.endTime).getTime();
+        return {
+          date: rec.dateOfSleep,
+          low:  round2((startMs - midnight) / 3_600_000),
+          high: round2((endMs   - midnight) / 3_600_000),
+        };
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 }
 
@@ -219,6 +177,10 @@ function aggregateIntoSlots(entries: FitbitIntradayEntry[], agg: number): number
 
 function round1(v: number): number {
   return Math.round(v * 10) / 10;
+}
+
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
 }
 
 function pad(n: number): string {

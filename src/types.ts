@@ -1,7 +1,7 @@
 export type MetricType = 'steps' | 'heart_rate' | 'calories' | 'sleep' | 'active_minutes';
 export type HeartRateMetric = 'average' | 'min' | 'max' | 'all';
 export type CalorieMetric = 'sum' | 'average' | 'min' | 'max' | 'all';
-export type SleepMetric = 'minutes_asleep' | 'efficiency';
+export type SleepMetric = 'columnrange';
 export type ActiveMetric = 'sum' | 'average' | 'min' | 'max' | 'all';
 export type StatisticType = HeartRateMetric | CalorieMetric | SleepMetric | ActiveMetric;
 
@@ -87,6 +87,14 @@ export type FitbitRawData =
   | { kind: 'daily'; metric: MetricType; entries: (FitbitDailyEntry | FitbitHeartDailyEntry)[] }
   | { kind: 'intraday'; metric: MetricType; agg: number; days: Record<string, FitbitIntradayEntry[]> }
   | { kind: 'sleep'; agg: number; records: FitbitSleepRecord[] };
+
+// ---- Sleep column range types ----
+
+export interface SleepColumnRangePoint {
+  date: string;   // 就寝日 (YYYY-MM-DD)
+  low: number;    // 就寝時刻（小数時間） 例: 23.5 = 23:30
+  high: number;   // 起床時刻（小数時間）日をまたぐ場合は 24 超え 例: 31.5 = 翌 07:30
+}
 
 // ---- Heatmap UI types ----
 

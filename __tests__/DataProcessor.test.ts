@@ -1,123 +1,98 @@
 import { DataProcessor } from '../src/data/DataProcessor';
-import { GoogleHealthBucket } from '../src/types';
+import { FitbitSleepRecord, SleepColumnRangePoint } from '../src/types';
 
 const processor = new DataProcessor();
 
-function makeBucket(
-  startMs: number,
-  endMs: number,
-  points: Array<{ intVal?: number; fpVal?: number }>
-): GoogleHealthBucket {
+function makeSleepRecord(
+  dateOfSleep: string,
+  startTime: string,
+  endTime: string,
+  isMainSleep = true
+): FitbitSleepRecord {
   return {
-    startTimeMillis: String(startMs),
-    endTimeMillis: String(endMs),
-    dataset: [
-      {
-        dataSourceId: 'test',
-        point: points.map(v => ({
-          startTimeNanos: String(startMs * 1_000_000),
-          endTimeNanos: String(endMs * 1_000_000),
-          value: [v],
-        })),
-      },
-    ],
+    dateOfSleep,
+    startTime,
+    endTime,
+    duration: new Date(endTime).getTime() - new Date(startTime).getTime(),
+    efficiency: 90,
+    minutesAsleep: 450,
+    minutesAwake: 30,
+    isMainSleep,
   };
 }
 
-const DAY = 86_400_000;
-const HOUR = 3_600_000;
-const BASE = new Date('2024-07-01').getTime();
+describe('DataProcessor — sleep (columnrange)', () => {
+  it('computes low and high from startTime and endTime', () => {
+    const rec = makeSleepRecord(
+      '2024-07-01',
+      '2024-07-01T23:00:00.000',
+      '2024-07-02T07:30:00.000'
+    );
+    const result = processor.process(
+      { kind: 'sleep', agg: 24, records: [rec] },
+      'columnrange'
+    ) as SleepColumnRangePoint[];
 
-describe('DataProcessor.processSteps', () => {
-  it('returns daily date string for daily buckets', () => {
-    const b = makeBucket(BASE, BASE + DAY, [{ intVal: 8000 }]);
-    const result = processor.processSteps([b]);
     expect(result[0].date).toBe('2024-07-01');
-    expect(result[0].value).toBe(8000);
+    expect(result[0].low).toBe(23.0);
+    expect(result[0].high).toBe(31.5);
   });
 
-  it('returns hourly date string for sub-day buckets', () => {
-    const b = makeBucket(BASE, BASE + HOUR, [{ intVal: 500 }]);
-    const result = processor.processSteps([b]);
-    expect(result[0].date).toMatch(/T\d{2}:00$/);
+  it('handles sleep that starts after midnight (low < 24)', () => {
+    const rec = makeSleepRecord(
+      '2024-07-01',
+      '2024-07-01T00:30:00.000',
+      '2024-07-01T08:00:00.000'
+    );
+    const result = processor.process(
+      { kind: 'sleep', agg: 24, records: [rec] },
+      'columnrange'
+    ) as SleepColumnRangePoint[];
+
+    expect(result[0].low).toBe(0.5);
+    expect(result[0].high).toBe(8.0);
   });
 
-  it('returns 0 for empty bucket', () => {
-    const b = makeBucket(BASE, BASE + DAY, []);
-    const result = processor.processSteps([b]);
-    expect(result[0].value).toBe(0);
-  });
-});
+  it('prefers isMainSleep=true when multiple records for the same date', () => {
+    const nap = makeSleepRecord(
+      '2024-07-01',
+      '2024-07-01T14:00:00.000',
+      '2024-07-01T15:00:00.000',
+      false
+    );
+    const main = makeSleepRecord(
+      '2024-07-01',
+      '2024-07-01T23:00:00.000',
+      '2024-07-02T07:00:00.000',
+      true
+    );
+    const result = processor.process(
+      { kind: 'sleep', agg: 24, records: [nap, main] },
+      'columnrange'
+    ) as SleepColumnRangePoint[];
 
-describe('DataProcessor.processHeartRate', () => {
-  const pts = [{ fpVal: 60 }, { fpVal: 80 }, { fpVal: 70 }];
-
-  it('returns average by default', () => {
-    const b = makeBucket(BASE, BASE + DAY, pts);
-    const result = processor.processHeartRate([b], 'average') as any[];
-    expect(result[0].value).toBeCloseTo(70, 1);
-  });
-
-  it('returns min', () => {
-    const b = makeBucket(BASE, BASE + DAY, pts);
-    const result = processor.processHeartRate([b], 'min') as any[];
-    expect(result[0].value).toBe(60);
-  });
-
-  it('returns max', () => {
-    const b = makeBucket(BASE, BASE + DAY, pts);
-    const result = processor.processHeartRate([b], 'max') as any[];
-    expect(result[0].value).toBe(80);
+    expect(result).toHaveLength(1);
+    expect(result[0].low).toBe(23.0);
   });
 
-  it('returns full stats for all', () => {
-    const b = makeBucket(BASE, BASE + DAY, pts);
-    const result = processor.processHeartRate([b], 'all') as any[];
-    expect(result[0]).toMatchObject({ avg: 70, min: 60, max: 80, count: 3 });
-  });
-});
+  it('returns results sorted by date', () => {
+    const rec1 = makeSleepRecord('2024-07-02', '2024-07-02T23:00:00.000', '2024-07-03T07:00:00.000');
+    const rec2 = makeSleepRecord('2024-07-01', '2024-07-01T23:00:00.000', '2024-07-02T07:00:00.000');
+    const result = processor.process(
+      { kind: 'sleep', agg: 24, records: [rec1, rec2] },
+      'columnrange'
+    ) as SleepColumnRangePoint[];
 
-describe('DataProcessor.processSleep', () => {
-  it('computes sleep_ratio correctly: fully asleep (avg=1) → ratio=1', () => {
-    const b = makeBucket(BASE, BASE + DAY, [{ intVal: 1 }, { intVal: 1 }]);
-    const result = processor.processSleep([b], 'sleep_ratio');
-    expect(result[0].value).toBe(1);
+    expect(result[0].date).toBe('2024-07-01');
+    expect(result[1].date).toBe('2024-07-02');
   });
 
-  it('computes sleep_ratio correctly: fully awake (avg=2) → ratio=0', () => {
-    const b = makeBucket(BASE, BASE + DAY, [{ intVal: 2 }, { intVal: 2 }]);
-    const result = processor.processSleep([b], 'sleep_ratio');
-    expect(result[0].value).toBe(0);
-  });
+  it('returns empty array when no records', () => {
+    const result = processor.process(
+      { kind: 'sleep', agg: 24, records: [] },
+      'columnrange'
+    ) as SleepColumnRangePoint[];
 
-  it('clamps sleep_ratio to [0, 1]', () => {
-    const b = makeBucket(BASE, BASE + DAY, [{ intVal: 1 }]);
-    const result = processor.processSleep([b], 'sleep_ratio');
-    expect(result[0].value).toBeGreaterThanOrEqual(0);
-    expect(result[0].value).toBeLessThanOrEqual(1);
-  });
-});
-
-describe('DataProcessor.processCalories', () => {
-  const pts = [{ fpVal: 100 }, { fpVal: 200 }, { fpVal: 300 }];
-
-  it('returns sum by default', () => {
-    const b = makeBucket(BASE, BASE + DAY, pts);
-    const result = processor.processCalories([b], 'sum') as any[];
-    expect(result[0].value).toBe(600);
-  });
-
-  it('returns all stats', () => {
-    const b = makeBucket(BASE, BASE + DAY, pts);
-    const result = processor.processCalories([b], 'all') as any[];
-    expect(result[0]).toMatchObject({ sum: 600, min: 100, max: 300, count: 3 });
-  });
-});
-
-describe('DataProcessor.processActiveMinutes', () => {
-  it('sums values', () => {
-    const b = makeBucket(BASE, BASE + DAY, [{ intVal: 10 }, { intVal: 20 }]);
-    const result = processor.processActiveMinutes([b], 'sum') as any[];
-    expect(result[0].value).toBe(30);
+    expect(result).toHaveLength(0);
   });
 });

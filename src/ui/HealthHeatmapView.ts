@@ -4,11 +4,13 @@ import { HealthClient, ApiError } from '../api/HealthClient';
 import { DataProcessor } from '../data/DataProcessor';
 import { CacheManager } from '../data/CacheManager';
 import { HeatmapRenderer } from './HeatmapRenderer';
+import { SleepColumnRangeRenderer } from './SleepColumnRangeRenderer';
 import {
   MetricType,
   HeatmapBlockParams,
   HeatmapDataPoint,
   HeatmapDataPointFull,
+  SleepColumnRangePoint,
   StatisticType,
 } from '../types';
 
@@ -24,7 +26,7 @@ const PANEL_METRICS: { key: MetricType; label: string }[] = [
 function resolveStatisticType(metric: MetricType): StatisticType {
   switch (metric) {
     case 'calories':       return 'sum';
-    case 'sleep':          return 'minutes_asleep';
+    case 'sleep':          return 'columnrange';
     case 'active_minutes': return 'sum';
     default:               return 'sum' as StatisticType;
   }
@@ -38,7 +40,7 @@ function localDateStr(d: Date): string {
 
 export class HealthHeatmapView extends ItemView {
   private currentMetric: MetricType = 'steps';
-  private renderer?: HeatmapRenderer;
+  private renderer?: { destroy(): void };
   private contentEl!: HTMLElement;
   private btnMap: Map<MetricType, HTMLButtonElement> = new Map();
 
@@ -112,6 +114,7 @@ export class HealthHeatmapView extends ItemView {
       let data = (await this.cacheManager.get(cacheKey)) as
         | HeatmapDataPoint[]
         | HeatmapDataPointFull[]
+        | SleepColumnRangePoint[]
         | null;
 
       if (!data) {
@@ -125,8 +128,15 @@ export class HealthHeatmapView extends ItemView {
         await this.cacheManager.set(cacheKey, data);
       }
 
-      this.renderer = new HeatmapRenderer(this.contentEl, params);
-      this.renderer.paint(data);
+      if (params.metric === 'sleep') {
+        const renderer = new SleepColumnRangeRenderer(this.contentEl, params);
+        this.renderer = renderer;
+        renderer.paint(data as SleepColumnRangePoint[]);
+      } else {
+        const renderer = new HeatmapRenderer(this.contentEl, params);
+        this.renderer = renderer;
+        renderer.paint(data as HeatmapDataPoint[] | HeatmapDataPointFull[]);
+      }
     } catch (err) {
       const msg =
         err instanceof AuthError && err.code === 'NOT_AUTHENTICATED'
@@ -154,7 +164,7 @@ export class HealthHeatmapView extends ItemView {
       endDate,
       heartRateMetric: 'average',
       calorieMetric:   'sum',
-      sleepMetric:     'minutes_asleep',
+      sleepMetric:     'columnrange',
       activeMetric:    'sum',
       theme:           'light',
     };

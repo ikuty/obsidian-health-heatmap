@@ -4,6 +4,7 @@ import { HealthClient, ApiError } from '../api/HealthClient';
 import { DataProcessor } from '../data/DataProcessor';
 import { CacheManager } from '../data/CacheManager';
 import { HeatmapRenderer } from './HeatmapRenderer';
+import { SleepColumnRangeRenderer } from './SleepColumnRangeRenderer';
 import {
   MetricType,
   HeartRateMetric,
@@ -14,6 +15,7 @@ import {
   StatisticType,
   HeatmapDataPoint,
   HeatmapDataPointFull,
+  SleepColumnRangePoint,
 } from '../types';
 
 export class HeatmapBlock {
@@ -54,6 +56,7 @@ export class HeatmapBlock {
       let data = await this.cacheManager.get(cacheKey) as
         | HeatmapDataPoint[]
         | HeatmapDataPointFull[]
+        | SleepColumnRangePoint[]
         | null;
 
       if (!data) {
@@ -67,9 +70,15 @@ export class HeatmapBlock {
         await this.cacheManager.set(cacheKey, data);
       }
 
-      const renderer = new HeatmapRenderer(el, params);
-      child.renderer = renderer;
-      renderer.paint(data);
+      if (params.metric === 'sleep') {
+        const renderer = new SleepColumnRangeRenderer(el, params);
+        child.renderer = renderer;
+        renderer.paint(data as SleepColumnRangePoint[]);
+      } else {
+        const renderer = new HeatmapRenderer(el, params);
+        child.renderer = renderer;
+        renderer.paint(data as HeatmapDataPoint[] | HeatmapDataPointFull[]);
+      }
     } catch (err) {
       if (err instanceof AuthError && err.code === 'NOT_AUTHENTICATED') {
         createErrorEl(el, '未認証: プラグイン設定から Fitbit OAuth 認証を行ってください。');
@@ -83,7 +92,7 @@ export class HeatmapBlock {
 }
 
 class HeatmapRenderChild extends MarkdownRenderChild {
-  renderer?: HeatmapRenderer;
+  renderer?: { destroy(): void };
 
   constructor(el: HTMLElement) {
     super(el);
@@ -132,7 +141,7 @@ export function parseBlockParams(source: string): HeatmapBlockParams {
     endDate,
     heartRateMetric: (raw['heartRateMetric'] as HeartRateMetric) ?? 'average',
     calorieMetric: (raw['calorieMetric'] as CalorieMetric) ?? 'sum',
-    sleepMetric: (raw['sleepMetric'] as SleepMetric) ?? 'minutes_asleep',
+    sleepMetric: 'columnrange' as SleepMetric,
     activeMetric: (raw['activeMetric'] as ActiveMetric) ?? 'sum',
     theme: (raw['theme'] as 'light' | 'dark') ?? 'light',
   };
