@@ -107,24 +107,24 @@ export class SleepColumnRangeRenderer {
         // In Highcharts columnrange, dataLabels[0] is placed at the HIGH end,
         // dataLabels[1] at the LOW end.
         dataLabels: [{
-          // HIGH end (right = wake time = 起床)
+          // HIGH end (right = wake time = 起床) — inside bar, right-aligned
           enabled: true,
-          inside: false,
-          align: 'left',
-          crop: false,
-          overflow: 'allow' as Highcharts.OptionsOverflowValue,
+          inside: true,
+          align: 'right',
+          crop: true,
+          overflow: 'justify' as Highcharts.OptionsOverflowValue,
           style: labelStyle,
           formatter() {
             const pt = this.point as Highcharts.Point & { low: number; high: number };
             return hoursToTimeStr(pt.high);
           },
         }, {
-          // LOW end (left = bedtime = 入眠)
+          // LOW end (left = bedtime = 入眠) — inside bar, left-aligned
           enabled: true,
-          inside: false,
-          align: 'right',
-          crop: false,
-          overflow: 'allow' as Highcharts.OptionsOverflowValue,
+          inside: true,
+          align: 'left',
+          crop: true,
+          overflow: 'justify' as Highcharts.OptionsOverflowValue,
           style: labelStyle,
           formatter() {
             const pt = this.point as Highcharts.Point & { low: number; high: number };
