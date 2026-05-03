@@ -17,19 +17,19 @@ export class SleepColumnRangeRenderer {
       HighchartsMore(Highcharts);
       moreApplied = true;
     }
-    const isDark    = this.params.theme === 'dark';
-    const textColor = isDark ? '#cccccc' : '#333333';
-    const gridColor = isDark ? '#333344' : '#dddddd';
-    const bgColor   = isDark ? '#1c1c2e' : 'transparent';
+    const isDark      = this.params.theme === 'dark';
+    const textColor   = isDark ? '#ffffff' : '#333333';
+    const gridColor   = isDark ? '#333344' : '#dddddd';
+    const bgColor     = isDark ? '#1c1c2e' : 'transparent';
+    const accentColor = getComputedStyle(this.container)
+      .getPropertyValue('--color-accent').trim() || '#00AAFF';
 
     const labelStep = points.length > 60 ? 7 : points.length > 14 ? 3 : 1;
     const yMin = calcYMin(points);
     const yMax = calcYMax(points);
 
-    // Dynamic height: each row ~36px + axis margins
-    const rowPx = 36;
     const wrapper = this.container.createDiv({ cls: 'health-heatmap-sleep-wrapper' });
-    wrapper.style.height = `${Math.max(300, points.length * rowPx + 100)}px`;
+    wrapper.style.height = '300px';
 
     const labelStyle: Highcharts.CSSObject = {
       color: textColor,
@@ -101,21 +101,13 @@ export class SleepColumnRangeRenderer {
         type: 'columnrange',
         name: 'Sleep',
         data: points.map((p, i) => [i, p.low, p.high]),
-        color: '#00AAFF',
+        color: accentColor,
         borderWidth: 0,
-        borderRadius: rowPx * 0.3,   // pill shape proportional to row height
+        borderRadius: 6,
+        // In Highcharts columnrange, dataLabels[0] is placed at the HIGH end,
+        // dataLabels[1] at the LOW end.
         dataLabels: [{
-          enabled: true,
-          inside: false,
-          align: 'right',
-          crop: false,
-          overflow: 'allow' as Highcharts.OptionsOverflowValue,
-          style: labelStyle,
-          formatter() {
-            const pt = this.point as Highcharts.Point & { low: number; high: number };
-            return hoursToTimeStr(pt.low);
-          },
-        }, {
+          // HIGH end (right = wake time = 起床)
           enabled: true,
           inside: false,
           align: 'left',
@@ -125,6 +117,18 @@ export class SleepColumnRangeRenderer {
           formatter() {
             const pt = this.point as Highcharts.Point & { low: number; high: number };
             return hoursToTimeStr(pt.high);
+          },
+        }, {
+          // LOW end (left = bedtime = 入眠)
+          enabled: true,
+          inside: false,
+          align: 'right',
+          crop: false,
+          overflow: 'allow' as Highcharts.OptionsOverflowValue,
+          style: labelStyle,
+          formatter() {
+            const pt = this.point as Highcharts.Point & { low: number; high: number };
+            return hoursToTimeStr(pt.low);
           },
         }],
       }] as Highcharts.SeriesOptionsType[],
