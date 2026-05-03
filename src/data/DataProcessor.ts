@@ -135,13 +135,22 @@ export class DataProcessor {
 
     return Array.from(mainByDate.values())
       .map(rec => {
-        const midnight = new Date(rec.dateOfSleep + 'T00:00:00').getTime();
-        const startMs  = new Date(rec.startTime).getTime();
-        const endMs    = new Date(rec.endTime).getTime();
+        const startDt = new Date(rec.startTime);
+        const endMs   = new Date(rec.endTime).getTime();
+
+        // 基準 00:00 の決定:
+        //   入眠が 12:00 以降 (夕方〜深夜) → 翌 00:00 を基準 → 入眠は負の値になる
+        //   入眠が 12:00 未満 (深夜過ぎ〜朝) → 当日 00:00 を基準
+        const dateMidnight = new Date(startDt);
+        dateMidnight.setHours(0, 0, 0, 0);
+        const refMs = startDt.getHours() >= 12
+          ? dateMidnight.getTime() + 24 * 3_600_000
+          : dateMidnight.getTime();
+
         return {
           date: rec.dateOfSleep,
-          low:  round2((startMs - midnight) / 3_600_000),
-          high: round2((endMs   - midnight) / 3_600_000),
+          low:  round2((startDt.getTime() - refMs) / 3_600_000),
+          high: round2((endMs             - refMs) / 3_600_000),
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date));

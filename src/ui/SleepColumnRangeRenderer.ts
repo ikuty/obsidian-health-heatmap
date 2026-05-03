@@ -97,10 +97,11 @@ export class SleepColumnRangeRenderer {
   }
 }
 
-// 小数時間 → "HH:MM"（24 超え対応）
+// 小数時間 → "HH:MM"（負値・24超え対応: -1 → "23:00"）
 function hoursToTimeStr(hours: number): string {
-  const h = Math.floor(hours) % 24;
-  const m = Math.round((hours % 1) * 60);
+  const totalMins = Math.round(((hours * 60) % 1440 + 1440) % 1440);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
   return `${pad(h)}:${pad(m)}`;
 }
 
@@ -112,15 +113,15 @@ function hoursToHHMM(hours: number): string {
 }
 
 function calcYMin(points: SleepColumnRangePoint[]): number {
-  if (points.length === 0) return 18;
+  if (points.length === 0) return 0;
   const minLow = Math.min(...points.map(p => p.low));
-  return Math.floor(Math.min(minLow, 18));
+  return Math.floor(Math.min(minLow, 0));
 }
 
 function calcYMax(points: SleepColumnRangePoint[]): number {
-  if (points.length === 0) return 36;
+  if (points.length === 0) return 12;
   const maxHigh = Math.max(...points.map(p => p.high));
-  return Math.ceil(Math.max(maxHigh, 36));
+  return Math.ceil(Math.max(maxHigh, 12));
 }
 
 function pad(n: number): string {

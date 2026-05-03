@@ -34,8 +34,8 @@ describe('DataProcessor — sleep (columnrange)', () => {
     ) as SleepColumnRangePoint[];
 
     expect(result[0].date).toBe('2024-07-01');
-    expect(result[0].low).toBe(23.0);
-    expect(result[0].high).toBe(31.5);
+    expect(result[0].low).toBe(-1.0);
+    expect(result[0].high).toBe(7.5);
   });
 
   it('handles sleep that starts after midnight (low < 24)', () => {
@@ -72,7 +72,7 @@ describe('DataProcessor — sleep (columnrange)', () => {
     ) as SleepColumnRangePoint[];
 
     expect(result).toHaveLength(1);
-    expect(result[0].low).toBe(23.0);
+    expect(result[0].low).toBe(-1.0);
   });
 
   it('returns results sorted by date', () => {
