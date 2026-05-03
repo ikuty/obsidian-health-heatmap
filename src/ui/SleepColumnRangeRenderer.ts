@@ -28,9 +28,12 @@ export class SleepColumnRangeRenderer {
     const wrapper = this.container.createDiv({ cls: 'health-heatmap-sleep-wrapper' });
     wrapper.style.height = '400px';
 
+    const labelStyle = { color: textColor, fontSize: '9px', fontWeight: 'normal', textOutline: 'none' };
+
     this.chart = Highcharts.chart(wrapper, {
       chart: {
         type: 'columnrange',
+        inverted: true,
         backgroundColor: 'transparent',
         style: { fontFamily: 'inherit' },
       },
@@ -53,11 +56,10 @@ export class SleepColumnRangeRenderer {
       },
 
       yAxis: {
-        title: { text: null },
+        title: { text: 'Sleep duration', style: { color: textColor } },
         min: yMin,
         max: yMax,
         tickInterval: 2,
-        reversed: true,
         labels: {
           style: { color: textColor, fontSize: '10px' },
           formatter() {
@@ -87,6 +89,30 @@ export class SleepColumnRangeRenderer {
         color: '#5b8dee',
         borderWidth: 0,
         borderRadius: 2,
+        pointWidth: 12,
+        dataLabels: [{
+          enabled: true,
+          inside: false,
+          align: 'right',
+          crop: false,
+          overflow: 'allow' as Highcharts.OptionsOverflowValue,
+          style: labelStyle,
+          formatter() {
+            const pt = this.point as Highcharts.Point & { low: number; high: number };
+            return hoursToTimeStr(pt.low);
+          },
+        }, {
+          enabled: true,
+          inside: false,
+          align: 'left',
+          crop: false,
+          overflow: 'allow' as Highcharts.OptionsOverflowValue,
+          style: labelStyle,
+          formatter() {
+            const pt = this.point as Highcharts.Point & { low: number; high: number };
+            return hoursToTimeStr(pt.high);
+          },
+        }],
       }] as Highcharts.SeriesOptionsType[],
     });
   }
