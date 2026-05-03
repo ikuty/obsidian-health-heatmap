@@ -18,24 +18,33 @@ export class SleepColumnRangeRenderer {
       moreApplied = true;
     }
     const isDark    = this.params.theme === 'dark';
-    const textColor = isDark ? '#cdd6f4' : '#333333';
-    const gridColor = isDark ? '#3a3a4a' : '#e0e0e0';
+    const textColor = isDark ? '#cccccc' : '#333333';
+    const gridColor = isDark ? '#333344' : '#dddddd';
+    const bgColor   = isDark ? '#1c1c2e' : 'transparent';
 
     const labelStep = points.length > 60 ? 7 : points.length > 14 ? 3 : 1;
     const yMin = calcYMin(points);
     const yMax = calcYMax(points);
 
+    // Dynamic height: each row ~36px + axis margins
+    const rowPx = 36;
     const wrapper = this.container.createDiv({ cls: 'health-heatmap-sleep-wrapper' });
-    wrapper.style.height = '400px';
+    wrapper.style.height = `${Math.max(300, points.length * rowPx + 100)}px`;
 
-    const labelStyle = { color: textColor, fontSize: '9px', fontWeight: 'normal', textOutline: 'none' };
+    const labelStyle: Highcharts.CSSObject = {
+      color: textColor,
+      fontSize: '11px',
+      fontWeight: 'bold',
+      textOutline: 'none',
+    };
 
     this.chart = Highcharts.chart(wrapper, {
       chart: {
         type: 'columnrange',
         inverted: true,
-        backgroundColor: 'transparent',
+        backgroundColor: bgColor,
         style: { fontFamily: 'inherit' },
+        marginLeft: 70,
       },
 
       title: { text: undefined },
@@ -46,17 +55,22 @@ export class SleepColumnRangeRenderer {
         categories: points.map(p => p.date),
         labels: {
           step: labelStep,
-          style: { color: textColor, fontSize: '10px' },
+          align: 'right',
+          style: { color: textColor, fontSize: '11px' },
           formatter() {
             return String(this.value).slice(5); // YYYY-MM-DD → MM-DD
           },
         },
-        lineColor: textColor,
-        tickColor: textColor,
+        lineColor: isDark ? '#555566' : '#cccccc',
+        tickWidth: 0,
+        gridLineWidth: 0,
       },
 
       yAxis: {
-        title: { text: 'Sleep duration', style: { color: textColor } },
+        title: {
+          text: 'Sleep duration',
+          style: { color: textColor, fontSize: '11px' },
+        },
         min: yMin,
         max: yMax,
         tickInterval: 2,
@@ -67,6 +81,7 @@ export class SleepColumnRangeRenderer {
           },
         },
         gridLineColor: gridColor,
+        lineWidth: 0,
       },
 
       tooltip: {
@@ -86,10 +101,9 @@ export class SleepColumnRangeRenderer {
         type: 'columnrange',
         name: 'Sleep',
         data: points.map((p, i) => [i, p.low, p.high]),
-        color: '#5b8dee',
+        color: '#00AAFF',
         borderWidth: 0,
-        borderRadius: 2,
-        pointWidth: 12,
+        borderRadius: rowPx * 0.3,   // pill shape proportional to row height
         dataLabels: [{
           enabled: true,
           inside: false,
